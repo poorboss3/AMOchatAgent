@@ -23,6 +23,10 @@ builder.Services.AddScoped<ITool, CancelOrderTool>();
 builder.Services.AddScoped<ITool, QueryLogisticsTool>();
 builder.Services.AddScoped<ITool, CheckUserKycTool>();
 
+// Attachment services
+builder.Services.AddSingleton<AttachmentStore>();
+builder.Services.AddScoped<ToolAttachmentContext>();
+
 // Agent service
 builder.Services.AddScoped<IAgentService, AgentService>();
 

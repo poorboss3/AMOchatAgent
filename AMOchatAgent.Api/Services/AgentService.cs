@@ -13,6 +13,8 @@ public class AgentService : IAgentService
     private readonly IMemoryCache _cache;
     private readonly IConfiguration _config;
     private readonly ILogger<AgentService> _logger;
+    private readonly AttachmentStore _attachmentStore;
+    private readonly ToolAttachmentContext _attachmentContext;
 
     private static readonly string SystemPrompt = """
         你是一个智能订单助手，帮助用户完成商品订购。
@@ -30,13 +32,17 @@ public class AgentService : IAgentService
         IEnumerable<ITool> tools,
         IMemoryCache cache,
         IConfiguration config,
-        ILogger<AgentService> logger)
+        ILogger<AgentService> logger,
+        AttachmentStore attachmentStore,
+        ToolAttachmentContext attachmentContext)
     {
         _llmFactory = llmFactory;
         _tools = tools;
         _cache = cache;
         _config = config;
         _logger = logger;
+        _attachmentStore = attachmentStore;
+        _attachmentContext = attachmentContext;
     }
 
     private ConversationContext GetOrCreateContext(string sessionId)
@@ -59,10 +65,25 @@ public class AgentService : IAgentService
     private List<ToolDefinition> GetToolDefinitions() =>
         _tools.Select(t => t.ToToolDefinition()).ToList();
 
+    private string BuildUserContent(ChatRequest request)
+    {
+        if (request.AttachmentIds?.Count > 0)
+        {
+            var attachments = _attachmentStore.GetMany(request.AttachmentIds).ToList();
+            _attachmentContext.Attachments.AddRange(attachments);
+            if (attachments.Count > 0)
+            {
+                var names = string.Join("、", attachments.Select(a => a.FileName));
+                return request.Message + $"\n[用户已上传附件：{names}]";
+            }
+        }
+        return request.Message;
+    }
+
     public async Task<ChatResponse> ChatAsync(ChatRequest request)
     {
         var context = GetOrCreateContext(request.SessionId);
-        context.Messages.Add(new LlmMessage { Role = "user", Content = request.Message });
+        context.Messages.Add(new LlmMessage { Role = "user", Content = BuildUserContent(request) });
 
         var llmService = _llmFactory.Create();
         var toolDefs = GetToolDefinitions();
@@ -158,7 +179,7 @@ public class AgentService : IAgentService
     {
         // For streaming, we do non-streaming tool calls and only stream the final text response
         var context = GetOrCreateContext(request.SessionId);
-        context.Messages.Add(new LlmMessage { Role = "user", Content = request.Message });
+        context.Messages.Add(new LlmMessage { Role = "user", Content = BuildUserContent(request) });
 
         var llmService = _llmFactory.Create();
         var toolDefs = GetToolDefinitions();

@@ -108,6 +108,15 @@ public class OrdersController : ControllerBase
                 });
         }
 
+        // Process attachments
+        var attachmentNames = request.Attachments?
+            .Where(a => !string.IsNullOrWhiteSpace(a.FileName))
+            .Select(a => a.FileName)
+            .ToList() ?? new List<string>();
+
+        if (attachmentNames.Count > 0)
+            _logger.LogInformation("Order attachments: {Files}", string.Join(", ", attachmentNames));
+
         // Create order
         var orderId = $"ORD{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
         var order = new OrderDto
@@ -122,7 +131,9 @@ public class OrdersController : ControllerBase
             ReceiverPhone = request.ReceiverPhone ?? "",
             ReceiverAddress = request.ReceiverAddress,
             TrackingNo = $"SF{Random.Shared.Next(1000000000, 1999999999)}",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            AttachmentCount = attachmentNames.Count,
+            AttachmentNames = attachmentNames
         };
 
         Orders[orderId] = order;

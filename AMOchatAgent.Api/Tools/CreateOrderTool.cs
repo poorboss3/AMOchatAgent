@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using AMOchatAgent.Api.Models;
+using AMOchatAgent.Api.Services;
 
 namespace AMOchatAgent.Api.Tools;
 
@@ -9,15 +10,18 @@ public class CreateOrderTool : ITool
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<CreateOrderTool> _logger;
+    private readonly ToolAttachmentContext _attachmentContext;
 
     public CreateOrderTool(
         IHttpClientFactory httpClientFactory,
         IConfiguration config,
-        ILogger<CreateOrderTool> logger)
+        ILogger<CreateOrderTool> logger,
+        ToolAttachmentContext attachmentContext)
     {
         _httpClientFactory = httpClientFactory;
         _config = config;
         _logger = logger;
+        _attachmentContext = attachmentContext;
     }
 
     public string Name => "create_order";
@@ -42,13 +46,23 @@ public class CreateOrderTool : ITool
         var baseUrl = _config["MockApi:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:5001";
         var client = _httpClientFactory.CreateClient("MockApi");
 
+        var attachments = _attachmentContext.Attachments
+            .Select(a => new
+            {
+                fileName = a.FileName,
+                contentType = a.ContentType,
+                dataBase64 = Convert.ToBase64String(a.Data)
+            })
+            .ToList();
+
         var body = JsonSerializer.Serialize(new
         {
             productId = parameters.TryGetProperty("product_id", out var pid) ? pid.GetString() : "",
             quantity = parameters.TryGetProperty("quantity", out var qty) ? qty.GetInt32() : 0,
             receiverName = parameters.TryGetProperty("receiver_name", out var rn) ? rn.GetString() : "",
             receiverPhone = parameters.TryGetProperty("receiver_phone", out var rp) ? rp.GetString() : "",
-            receiverAddress = parameters.TryGetProperty("receiver_address", out var ra) ? ra.GetString() : ""
+            receiverAddress = parameters.TryGetProperty("receiver_address", out var ra) ? ra.GetString() : "",
+            attachments = attachments.Count > 0 ? attachments : null
         });
 
         _logger.LogInformation("Calling CreateOrder: {Body}", body);
