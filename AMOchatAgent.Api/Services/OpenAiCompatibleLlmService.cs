@@ -58,18 +58,35 @@ public class OpenAiCompatibleLlmService : ILlmService
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
+        var url = BuildChatUrl();
         var json = JsonSerializer.Serialize(request, serializeOptions);
-        _logger.LogDebug("LLM request to {Provider}: {Json}", _providerName, json);
 
+        var roleCounts = request.Messages
+            .GroupBy(m => m.Role)
+            .Select(g => $"{g.Key}×{g.Count()}")
+            .ToList();
+
+        _logger.LogInformation(
+            "LLM Request → provider={Provider} model={Model} url={Url} messages=[{Roles}] tools={ToolCount}",
+            _providerName, request.Model, url,
+            string.Join(", ", roleCounts),
+            request.Tools?.Count ?? 0);
+
+        _logger.LogDebug("LLM request body: {Json}", json);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var response = await _httpClient.PostAsync(
-            BuildChatUrl(),
+            url,
             new StringContent(json, Encoding.UTF8, "application/json"));
+        sw.Stop();
 
         var responseBody = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogError("LLM API error {Status}: {Body}", response.StatusCode, responseBody);
+            _logger.LogError(
+                "LLM Response ← provider={Provider} status={Status} duration={Duration}ms body={Body}",
+                _providerName, (int)response.StatusCode, sw.ElapsedMilliseconds, responseBody);
             throw new HttpRequestException($"LLM API returned {response.StatusCode}: {responseBody}");
         }
 
@@ -77,7 +94,21 @@ public class OpenAiCompatibleLlmService : ILlmService
             responseBody,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        return llmResponse?.Choices?.FirstOrDefault()?.Message
+        var choice = llmResponse?.Choices?.FirstOrDefault();
+        var toolCallNames = choice?.Message?.ToolCalls?
+            .Select(tc => tc.Function.Name)
+            .ToList() ?? new List<string>();
+
+        _logger.LogInformation(
+            "LLM Response ← provider={Provider} status={Status} duration={Duration}ms finish={FinishReason} toolCalls=[{ToolCalls}] tokens={PromptTokens}+{CompletionTokens}={TotalTokens}",
+            _providerName, (int)response.StatusCode, sw.ElapsedMilliseconds,
+            choice?.FinishReason ?? "unknown",
+            string.Join(", ", toolCallNames),
+            llmResponse?.Usage?.PromptTokens ?? 0,
+            llmResponse?.Usage?.CompletionTokens ?? 0,
+            llmResponse?.Usage?.TotalTokens ?? 0);
+
+        return choice?.Message
                ?? new LlmMessage { Role = "assistant", Content = "抱歉，我遇到了问题，请稍后重试。" };
     }
 
