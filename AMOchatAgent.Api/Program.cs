@@ -1,7 +1,16 @@
 using AMOchatAgent.Api.Services;
 using AMOchatAgent.Api.Tools;
+using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(new ConfigurationBuilder()
+        .AddJsonFile("appsettings.json")
+        .Build())
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog((ctx, services, cfg) =>
+    cfg.ReadFrom.Configuration(ctx.Configuration));
 
 // CORS
 builder.Services.AddCors(opt =>

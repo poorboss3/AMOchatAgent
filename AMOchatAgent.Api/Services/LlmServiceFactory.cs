@@ -20,6 +20,7 @@ public class LlmServiceFactory
         var httpClientFactory = _sp.GetRequiredService<IHttpClientFactory>();
         var httpClient = httpClientFactory.CreateClient($"Llm_{providerName}");
         var logger = _sp.GetRequiredService<ILogger<OpenAiCompatibleLlmService>>();
-        return new OpenAiCompatibleLlmService(httpClient, providerConfig, providerName, logger);
+        var loggerFactory = _sp.GetRequiredService<ILoggerFactory>();
+        return new OpenAiCompatibleLlmService(httpClient, providerConfig, providerName, logger, loggerFactory);
     }
 }
