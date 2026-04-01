@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>订单助手</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+      background: #f0f4f8;
+      overscroll-behavior: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+      background: #ffffff;
+      box-shadow: 0 0 40px rgba(0,0,0,0.12);
+      position: relative;
+    }
+
+    /* Header */
+    #header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(102,126,234,0.4);
+      z-index: 10;
+    }
+
+    #header .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    #header .info h1 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    #header .info p {
+      font-size: 11px;
+      margin: 0;
+      opacity: 0.8;
+    }
+
+    #header .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      display: inline-block;
+      margin-right: 4px;
+      box-shadow: 0 0 6px #4ade80;
+    }
+
+    /* Messages area */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+
+    #messages::-webkit-scrollbar { display: none; }
+
+    /* Date divider */
+    .date-divider {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 11px;
+      margin: 4px 0;
+    }
+
+    /* Message row */
+    .msg-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      max-width: 100%;
+      animation: fadeSlideIn 0.25s ease-out;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-row.user { flex-direction: row-reverse; }
+
+    /* Avatars */
+    .msg-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .msg-avatar.bot {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .msg-avatar.user-av {
+      background: linear-gradient(135deg, #f093fb, #f5576c);
+      color: white;
+    }
+
+    /* Bubble */
+    .bubble {
+      max-width: 72%;
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 14.5px;
+      line-height: 1.55;
+      word-break: break-word;
+      position: relative;
+    }
+
+    .bubble.bot {
+      background: #f3f4f6;
+      color: #1f2937;
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble.user {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* Tool indicator bubble */
+    .bubble.tool-indicator {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      font-size: 13px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bubble.tool-indicator .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #f59e0b;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Order success card */
+    .order-card {
+      background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+      border: 1px solid #6ee7b7;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #065f46;
+      margin-top: 6px;
+    }
+
+    .order-card .title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .order-card .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(6,95,70,0.1);
+    }
+
+    .order-card .row:last-child { border-bottom: none; }
+
+    /* Typing indicator */
+    #typing-indicator {
+      display: none;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    #typing-indicator.show { display: flex; }
+
+    .typing-dots {
+      background: #f3f4f6;
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      padding: 12px 16px;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .typing-dots span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #9ca3af;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30%           { transform: translateY(-8px); background: #667eea; }
+    }
+
+    /* Input area */
+    #input-area {
+      background: white;
+      border-top: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    #input-wrap {
+      flex: 1;
+      background: #f3f4f6;
+      border-radius: 24px;
+      display: flex;
+      align-items: flex-end;
+      padding: 8px 14px;
+      transition: box-shadow 0.2s;
+    }
+
+    #input-wrap:focus-within {
+      box-shadow: 0 0 0 2px rgba(102,126,234,0.35);
+      background: #fff;
+    }
+
+    #msg-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 15px;
+      color: #111827;
+      resize: none;
+      max-height: 120px;
+      min-height: 24px;
+      line-height: 1.5;
+      font-family: inherit;
+    }
+
+    #msg-input::placeholder { color: #9ca3af; }
+
+    #send-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.2s, transform 0.15s;
+      box-shadow: 0 3px 10px rgba(102,126,234,0.45);
+    }
+
+    #send-btn:active { transform: scale(0.92); }
+    #send-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    #send-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+      transform: translateX(1px);
+    }
+
+    /* Clear session button */
+    #clear-btn {
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    #clear-btn:active { background: rgba(255,255,255,0.15); }
+
+    /* Streaming cursor */
+    .stream-cursor::after {
+      content: '';
+      display: inline-block;
+      width: 2px;
+      height: 14px;
+      background: #667eea;
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: blink 0.7s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <div id="header">
+    <div class="avatar">🤖</div>
+    <div class="info" style="flex:1">
+      <h1>订单助手</h1>
+      <p><span class="status-dot"></span>在线服务中</p>
+    </div>
+    <div id="clear-btn" onclick="clearSession()">新对话</div>
+  </div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div class="date-divider" id="date-divider"></div>
+    <!-- Messages appended here -->
+  </div>
+
+  <!-- Typing indicator -->
+  <div id="typing-indicator" style="padding: 0 14px 8px; flex-shrink:0">
+    <div class="msg-avatar bot">🤖</div>
+    <div class="typing-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div id="input-area">
+    <div id="input-wrap">
+      <textarea
+        id="msg-input"
+        placeholder="输入消息..."
+        rows="1"
+        maxlength="500"
+      ></textarea>
+    </div>
+    <button id="send-btn" onclick="sendMessage()" disabled>
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  // ── Config ────────────────────────────────────────────────────────────────
+  const API_BASE = 'http://localhost:5000';
+  const USE_STREAM = true; // set false to use non-streaming mode
+
+  // ── Session ───────────────────────────────────────────────────────────────
+  function getOrCreateSessionId() {
+    let sid = sessionStorage.getItem('amo_session_id');
+    if (!sid) {
+      sid = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+      sessionStorage.setItem('amo_session_id', sid);
+    }
+    return sid;
+  }
+
+  let sessionId = getOrCreateSessionId();
+  let isProcessing = false;
+  let streamingBubble = null;
+  let streamingText = '';
+
+  // ── DOM refs ──────────────────────────────────────────────────────────────
+  const messagesEl = document.getElementById('messages');
+  const inputEl    = document.getElementById('msg-input');
+  const sendBtn    = document.getElementById('send-btn');
+  const typingEl   = document.getElementById('typing-indicator');
+  const dateEl     = document.getElementById('date-divider');
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  function init() {
+    // Show today's date
+    const d = new Date();
+    dateEl.textContent = d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+
+    // Welcome message
+    appendBotMessage('您好！我是您的专属订单助手 ✨\n\n我可以帮您：\n• 下单购买商品（iPhone 16、小米14、AirPods Pro、充电宝）\n• 查询订单状态\n• 取消订单\n• 查询物流信息\n\n请告诉我您想购买什么商品吧！');
+
+    // Input events
+    inputEl.addEventListener('input', onInputChange);
+    inputEl.addEventListener('keydown', onKeyDown);
+  }
+
+  function onInputChange() {
+    // Auto-resize textarea
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    sendBtn.disabled = !inputEl.value.trim() || isProcessing;
+  }
+
+  function onKeyDown(e) {
+    // Desktop: Enter to send, Shift+Enter for newline
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile()) {
+      e.preventDefault();
+      if (!isProcessing && inputEl.value.trim()) sendMessage();
+    }
+  }
+
+  function isMobile() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  // ── Send Message ──────────────────────────────────────────────────────────
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || isProcessing) return;
+
+    // Clear input
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    sendBtn.disabled = true;
+    isProcessing = true;
+
+    // Show user message
+    appendUserMessage(text);
+
+    if (USE_STREAM) {
+      await sendStream(text);
+    } else {
+      await sendNonStream(text);
+    }
+
+    isProcessing = false;
+    sendBtn.disabled = !inputEl.value.trim();
+  }
+
+  async function sendNonStream(text) {
+    showTyping(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      showTyping(false);
+      appendBotMessage(data.reply || '处理完成');
+
+      if (data.status === 'completed' && data.orderResult) {
+        appendOrderCard(data.orderResult);
+      }
+    } catch (err) {
+      showTyping(false);
+      appendBotMessage('网络错误，请检查连接后重试。', true);
+      console.error(err);
+    }
+  }
+
+  async function sendStream(text) {
+    showTyping(true);
+    streamingBubble = null;
+    streamingText = '';
+    let toolIndicatorShown = false;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      showTyping(false);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          let evt;
+          try { evt = JSON.parse(raw); } catch { continue; }
+
+          if (evt.type === 'delta') {
+            const chunk = evt.content || '';
+
+            if (chunk.includes('[正在处理...]')) {
+              // Show tool indicator
+              if (!toolIndicatorShown) {
+                appendToolIndicator();
+                toolIndicatorShown = true;
+              }
+            } else {
+              // Remove tool indicator if present
+              if (toolIndicatorShown) {
+                removeToolIndicator();
+                toolIndicatorShown = false;
+              }
+
+              if (!streamingBubble) {
+                streamingBubble = createStreamingBubble();
+              }
+              streamingText += chunk;
+              updateStreamingBubble(streamingText);
+            }
+          } else if (evt.type === 'done') {
+            // finalize
+            if (streamingBubble) finalizeStreamingBubble();
+            if (toolIndicatorShown) removeToolIndicator();
+          } else if (evt.type === 'error') {
+            if (streamingBubble) finalizeStreamingBubble();
+            appendBotMessage(evt.content || '发生错误，请重试', true);
+          }
+        }
+      }
+
+      // Finalize if not already done
+      if (streamingBubble) finalizeStreamingBubble();
+      if (toolIndicatorShown) removeToolIndicator();
+
+    } catch (err) {
+      showTyping(false);
+      if (streamingBubble) finalizeStreamingBubble();
+      appendBotMessage('网络错误，请检查连接后重试。', true);
+      console.error(err);
+    }
+  }
+
+  // ── UI Helpers ────────────────────────────────────────────────────────────
+  function appendUserMessage(text) {
+    const row = document.createElement('div');
+    row.className = 'msg-row user';
+    row.innerHTML = `
+      <div class="msg-avatar user-av">👤</div>
+      <div class="bubble user">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
+    `;
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
+  function appendBotMessage(text, isError = false) {
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    const formatted = formatBotText(text);
+    row.innerHTML = `
+      <div class="msg-avatar bot">🤖</div>
+      <div class="bubble bot${isError ? ' border border-red-200 bg-red-50 text-red-700' : ''}">${formatted}</div>
+    `;
+    messagesEl.appendChild(row);
+    scrollToBottom();
+    return row;
+  }
+
+  function createStreamingBubble() {
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    row.id = 'streaming-row';
+    row.innerHTML = `
+      <div class="msg-avatar bot">🤖</div>
+      <div class="bubble bot stream-cursor" id="streaming-bubble"></div>
+    `;
+    messagesEl.appendChild(row);
+    scrollToBottom();
+    return row;
+  }
+
+  function updateStreamingBubble(text) {
+    const bubble = document.getElementById('streaming-bubble');
+    if (bubble) {
+      bubble.innerHTML = formatBotText(text);
+      scrollToBottom();
+    }
+  }
+
+  function finalizeStreamingBubble() {
+    const bubble = document.getElementById('streaming-bubble');
+    if (bubble) bubble.classList.remove('stream-cursor');
+    streamingBubble = null;
+    streamingText = '';
+  }
+
+  function appendToolIndicator() {
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    row.id = 'tool-indicator-row';
+    row.innerHTML = `
+      <div class="msg-avatar bot">🤖</div>
+      <div class="bubble tool-indicator">
+        <div class="spinner"></div>
+        <span>正在调用工具处理中，请稍候...</span>
+      </div>
+    `;
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
+  function removeToolIndicator() {
+    const el = document.getElementById('tool-indicator-row');
+    if (el) el.remove();
+  }
+
+  function appendOrderCard(orderData) {
+    // Try to parse if it's a string
+    let data = orderData;
+    if (typeof orderData === 'string') {
+      try { data = JSON.parse(orderData); } catch { return; }
+    }
+
+    const card = document.createElement('div');
+    card.className = 'order-card';
+    card.innerHTML = `
+      <div class="title">✅ 订单创建成功</div>
+      ${data.orderId ? `<div class="row"><span>订单号</span><span>${data.orderId}</span></div>` : ''}
+      ${data.productName ? `<div class="row"><span>商品</span><span>${escapeHtml(data.productName)}</span></div>` : ''}
+      ${data.amount != null ? `<div class="row"><span>金额</span><span>¥${Number(data.amount).toFixed(2)}</span></div>` : ''}
+      ${data.trackingNo ? `<div class="row"><span>运单号</span><span>${data.trackingNo}</span></div>` : ''}
+    `;
+
+    // Append to last bot message
+    const lastBotBubble = messagesEl.querySelector('.msg-row:last-child .bubble.bot');
+    if (lastBotBubble) {
+      lastBotBubble.appendChild(card);
+    } else {
+      messagesEl.appendChild(card);
+    }
+    scrollToBottom();
+  }
+
+  function showTyping(show) {
+    typingEl.classList.toggle('show', show);
+    if (show) scrollToBottom();
+  }
+
+  function scrollToBottom() {
+    requestAnimationFrame(() => {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
+  }
+
+  function formatBotText(text) {
+    return escapeHtml(text)
+      .replace(/\n/g, '<br>')
+      .replace(/•\s/g, '• ')  // keep bullets
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');  // bold markdown
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ── Clear Session ─────────────────────────────────────────────────────────
+  async function clearSession() {
+    if (isProcessing) return;
+
+    // Clear server session
+    try {
+      await fetch(`${API_BASE}/api/chat/${sessionId}`, { method: 'DELETE' });
+    } catch { /* ignore */ }
+
+    // Create new session
+    sessionId = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+    sessionStorage.setItem('amo_session_id', sessionId);
+
+    // Clear UI
+    messagesEl.innerHTML = '';
+    const divider = document.createElement('div');
+    divider.className = 'date-divider';
+    const d = new Date();
+    divider.textContent = d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+    messagesEl.appendChild(divider);
+
+    // Welcome again
+    appendBotMessage('对话已重置！请告诉我您需要什么帮助？');
+  }
+
+  // ── Keyboard / Viewport handling (iOS) ───────────────────────────────────
+  // When soft keyboard opens on iOS, scroll to bottom
+  window.addEventListener('resize', () => {
+    setTimeout(scrollToBottom, 100);
+  });
+
+  visualViewport?.addEventListener('resize', () => {
+    setTimeout(scrollToBottom, 50);
+  });
+
+  // ── Start ─────────────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>
